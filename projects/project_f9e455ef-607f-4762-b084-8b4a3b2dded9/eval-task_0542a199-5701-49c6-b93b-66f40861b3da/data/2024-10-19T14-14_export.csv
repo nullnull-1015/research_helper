@@ -1,0 +1,5 @@
+widgets,favorite
+st.button,False
+st.number_input,True
+st.selectbox,True
+st.text_area,False
