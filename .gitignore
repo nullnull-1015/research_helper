@@ -165,3 +165,5 @@ projects/
 models/*
 datasets/*
 test*
+
+!models/example_model.py
