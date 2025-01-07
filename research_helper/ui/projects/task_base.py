@@ -28,6 +28,12 @@ class TaskConfigComponent(ComponentBase):
             key="task-namer",
             on_change=lambda: self._update_config("name", st.session_state["task-namer"])
         )
+        st.text_area(
+            "Discription",
+            value=self._config["discription"],
+            key="task-discriptor",
+            on_change=lambda: self._update_config("discription", st.session_state["task-discriptor"])
+        )
         
         self.draw_body()
         
@@ -51,6 +57,7 @@ class TaskConfigComponent(ComponentBase):
     def _load_config(self) -> Dict:
         default_config = {
             "name": self.task_id,
+            "discription": "",
             "task_id": self.task_id
         }
         try:

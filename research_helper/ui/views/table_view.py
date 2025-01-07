@@ -36,7 +36,7 @@ def serialize(target: Any) -> str:
     elif isinstance(target, PromptValue):
         return target.to_string()
     elif isinstance(target, Sequence):
-        return "\n\n".join([serialize(t) for t in target])
+        return [serialize(t) for t in target]
     else:
         return str(target)
 

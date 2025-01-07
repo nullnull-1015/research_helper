@@ -127,7 +127,12 @@ class CSVHead(CSVNode):
         for d in data:
             try:
                 csv_path = d["csv"]["path"]
-                rhdf = RHDataFrameAdapter(pd.read_csv(csv_path, encoding="utf-8"))
+                _, extension = os.path.splitext(csv_path)
+                if extension == ".csv":
+                    data = pd.read_csv(csv_path, encoding="utf-8")
+                elif extension == ".jsonl":
+                    data =  pd.read_json(csv_path, orient='records', lines=True)
+                rhdf = RHDataFrameAdapter(data)
                 csv = CSV(path=csv_path, rhdf=rhdf)
                 config = CombiningConfig(**d["config"])
                 self.insert_csv(csv, config)
@@ -322,6 +327,9 @@ class CSVElement(CSVNode):
         return ElementData(csv=self._csv, config=self._config)
 
 
+class CSVFormatError(Exception):
+    pass
+
 class MultiCSVUploader(ComponentBase):
     DATA_DIR_NAME = "data"
     
@@ -350,9 +358,7 @@ class MultiCSVUploader(ComponentBase):
 
     def _upload_file(self, file: UploadedFile) -> Optional[CSV]:
         try:
-            csv_df = pd.read_csv(io.BytesIO(file.read()))
-            csv_path = self._data_dir_path+"/"+file.name
-            csv_df.to_csv(csv_path, mode="w", encoding="utf-8", index=False)
+            csv_path, csv_df = self.load_file(file)
             csv = CSV(path=csv_path, rhdf=RHDataFrameAdapter(csv_df))
             self._error = ""
             return csv
@@ -360,6 +366,31 @@ class MultiCSVUploader(ComponentBase):
             etype, value, tb = sys.exc_info()
             error_msg = "".join(traceback.format_exception_only(etype, value))
             self._error = error_msg
+    
+    def load_file(self, file: Optional[UploadedFile]) -> Optional[pd.DataFrame]:
+        if file is None: return None
+        
+        _, extension = os.path.splitext(file.name)
+        if extension == ".csv":
+            return self.load_csv(file)
+        elif extension == ".jsonl":
+            return self.load_jsonl(file)
+        
+        raise Exception(f"Invalid File: {file.name}, {extension}")
+        
+    
+    def load_csv(self, file: Optional[UploadedFile]) -> Optional[pd.DataFrame]:
+        new_csv = pd.read_csv(io.BytesIO(file.read()))
+        csv_path = self._data_dir_path+"/"+file.name
+        new_csv.to_csv(csv_path, mode="w", encoding="utf-8", index=False)
+        return csv_path, new_csv
+        
+    
+    def load_jsonl(self, file: Optional[UploadedFile]) -> Optional[pd.DataFrame]:
+        new_csv = pd.read_json(io.BytesIO(file.read()), orient='records', lines=True)
+        csv_path = self._data_dir_path+"/"+file.name
+        new_csv.to_json(csv_path, orient='records', lines=True, force_ascii=False)
+        return csv_path, new_csv
     
     def draw(self) -> Optional[RHDataFrame]:
         try:
@@ -377,7 +408,7 @@ class MultiCSVUploader(ComponentBase):
         
         st.file_uploader(
             "Upload CSV file",
-            type=["csv"],
+            type=["csv", "jsonl"],
             key=self._key,
             on_change=lambda: self._on_update_files(st.session_state[self._key]),
         )

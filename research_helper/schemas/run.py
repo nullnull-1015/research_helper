@@ -8,9 +8,15 @@ from langchain_core.load import Serializable, load, dumpd
 
 Self = TypeVar("Self", bound="RunSerializable")
 
+def try_load(obj):
+    try:
+        return load(obj)
+    except:
+        return obj
+
 serializable = Annotated[
     Serializable,
-    PlainValidator(load),
+    PlainValidator(try_load),
     PlainSerializer(dumpd)
 ]
 

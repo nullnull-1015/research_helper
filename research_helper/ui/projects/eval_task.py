@@ -48,7 +48,7 @@ class Evaluation:
         io_fields = data.apply(
             lambda row: {
                 "__input":   self._config.input_field.format(**row),
-                "__example": self._config.example_field.format(**row),
+                "__example": row[self._config.example_field],
                 **{
                     f"__{out_name}": out_format.format(**row)
                     for out_name, out_format in self._config.output_fields
@@ -69,8 +69,8 @@ class Evaluation:
     
     def _load_data(self):
         try:
-            data = pd.read_csv(self._data_path, encoding="utf-8")
-        except:
+            data = pd.read_json(self._data_path, orient='records', lines=True)
+        except Exception as e:
             data = self._config.df
         
         missing_col = self._validate_data(data)
@@ -80,7 +80,7 @@ class Evaluation:
             return self._add_missing_col(data, missing_col=missing_col)
     
     def _save_data(self):
-        self._eval_df.to_csv(self._data_path, encoding="utf-8", index=False)
+        self._eval_df.to_json(self._data_path, orient='records', lines=True, force_ascii=False)
     
     def _get_cols(self):
         return {
@@ -193,7 +193,7 @@ class EvaluationView:
             )
 
 class EvalConfigPanel(TaskConfigComponent):
-    eval_file = "eval_data.csv"
+    eval_file = "eval_data.jsonl"
     
     def __init__(self, task_path: str) -> None:
         super().__init__(task_path)
@@ -394,20 +394,22 @@ class EvalViewPanel(ComponentBase):
         with slash:
             st.text("/")
         with page_count:
-            st.text(len(self._config.evaluation._eval_df))
+            st.text(len(self._config.evaluation._eval_df)-1)
         
         ## Body
         with st.container(height=200, border=False):
             left_col, right_col = st.columns([0.5, 0.5])
             with left_col:
-                with st.container(border=True, height=200):
-                    st.text("Input")
-                    st.text(data.input)
+                st.text_area("Input", data.input, height=200, disabled=True)
+                # with st.container(border=True, height=200):
+                #     st.text("Input")
+                #     st.text(data.input)
             
             with right_col:
-                with st.container(border=True, height=200):
-                    st.text("Example")
-                    st.text(data.example)
+                st.text_area("Example", data.example, height=200, disabled=True)
+                # with st.container(border=True, height=200):
+                #     st.text("Example")
+                #     st.text(data.example)
         
         with st.container(height=250, border=False):
             for model_name, eval_data in data.eval_data.items():

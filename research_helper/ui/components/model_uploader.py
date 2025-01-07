@@ -33,7 +33,8 @@ class ModelUploader(ComponentBase):
         
         try:
             self._model_cls, self._model = self._load_model_cls(self.model_path)
-        except:
+        except Exception as e:
+            print(e)
             self._model_cls = None
             self._model = None
         self._error: str = None

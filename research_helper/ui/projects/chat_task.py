@@ -102,15 +102,22 @@ class ChatTask(Task):
         with table_tab:
             self.table_view.draw()
             if (df := self.table_view.selected) is not None:
-                data = df.to_csv(index=False).encode("utf-8")
+                data_csv = df.to_csv(index=False).encode("utf-8")
+                data_jsonl = df.to_json(orient='records', lines=True, force_ascii=False)
             else:
-                data = ""
+                data_csv = data_jsonl = ""
             
             st.download_button(
                 label="Download as CSV",
-                data=data,
+                data=data_csv,
                 file_name=f"{self.task_id}.csv",
                 mime="text/csv",
+            )
+            st.download_button(
+                label="Download as JSONL",
+                data=data_jsonl,
+                file_name=f"{self.task_id}.jsonl",
+                mime="application/json",
             )
     
     def run(self, input):

@@ -36,9 +36,9 @@ class CSVTmpUploader(ComponentBase):
         with st.container():
             file = st.file_uploader(
                 " ",
-                type=["csv"],
+                type=["csv", "jsonl"],
                 key=self._key,
-                on_change=lambda: self._upload_csv(st.session_state[self._key]),
+                on_change=lambda: self._upload_file(st.session_state[self._key]),
                 label_visibility="collapsed",
             )
             
@@ -67,9 +67,9 @@ class CSVTmpUploader(ComponentBase):
                             )
                         },
                         hide_index=True,
-                        on_change=lambda: self._update_csv(st.session_state[data_editor_key]["edited_rows"])
                     )
-                    return self.csv
+                    st.button("Update", on_click=lambda: self._update_csv(st.session_state[data_editor_key]["edited_rows"]))
+                    return self._df
                 
                 if self._error:
                     st.error(self._error)
@@ -83,7 +83,7 @@ class CSVTmpUploader(ComponentBase):
         self._error = None
     
     def _rename_column(self, renamer: Renamer):
-        if self.csv is None: return
+        if self._df is None: return
         if all([new_col_name not in self.csv.columns for new_col_name in renamer.values()]):
             self._df = self._df.rename(columns=renamer)
     
@@ -93,12 +93,12 @@ class CSVTmpUploader(ComponentBase):
             col_name, new_value = list(data.items())[0]
             self._df.loc[idx, col_name] = new_value
     
-    def _upload_csv(self, file: Optional[UploadedFile]) -> None:
+    def _upload_file(self, file: Optional[UploadedFile]) -> None:
         self._reset_field()
         if not file: return
         
         try:
-            df = self.load_csv(file)
+            df = self.load_file(file)
             df[CSVTmpUploader.SELECT_COLUMN] = True # add selection col
             # set SELECT_COLUMN as first column
             columns_order = [CSVTmpUploader.SELECT_COLUMN] + [column for column in df.columns if column != CSVTmpUploader.SELECT_COLUMN]
@@ -109,10 +109,27 @@ class CSVTmpUploader(ComponentBase):
             error_msg = "".join(traceback.format_exception_only(etype, value))
             self._error = error_msg
     
-    def load_csv(self, file: Optional[UploadedFile]) -> Optional[pd.DataFrame]:
+    def load_file(self, file: Optional[UploadedFile]) -> Optional[pd.DataFrame]:
         if file is None: return None
         
+        _, extension = os.path.splitext(file.name)
+        if extension == ".csv":
+            return self.load_csv(file)
+        elif extension == ".jsonl":
+            return self.load_jsonl(file)
+        
+        raise Exception(f"Invalid File: {file.name}, {extension}")
+        
+    
+    def load_csv(self, file: Optional[UploadedFile]) -> Optional[pd.DataFrame]:
         new_csv = pd.read_csv(io.BytesIO(file.read()))
+        if self._validate(new_csv):
+            return new_csv
+        
+        raise CSVFormatError(f"Invalid Format: file must contain columns: {self._columns}, but {self._df.columns}")
+    
+    def load_jsonl(self, file: Optional[UploadedFile]) -> Optional[pd.DataFrame]:
+        new_csv = pd.read_json(io.BytesIO(file.read()), orient='records', lines=True)
         if self._validate(new_csv):
             return new_csv
         
