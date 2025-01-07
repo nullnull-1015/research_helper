@@ -22,6 +22,7 @@ CHAT_LOG_FILE = "chat.log"
 class ChatConfig:
     args: List[str]
     model: Model
+    config: Dict
 
 class ChatConfigPanel(TaskConfigComponent):
     def __init__(self, task_path: str) -> None:
@@ -57,7 +58,8 @@ class ChatConfigPanel(TaskConfigComponent):
         model = self.model_uploader.model
         return ChatConfig(
             args=args,
-            model=model
+            model=model,
+            config=self._config
         )
 
 class ChatInputObserver(OnserverBase):
@@ -110,13 +112,13 @@ class ChatTask(Task):
             st.download_button(
                 label="Download as CSV",
                 data=data_csv,
-                file_name=f"{self.task_id}.csv",
+                file_name=f"{self.config.config['name']}.csv",
                 mime="text/csv",
             )
             st.download_button(
                 label="Download as JSONL",
                 data=data_jsonl,
-                file_name=f"{self.task_id}.jsonl",
+                file_name=f"{self.config.config['name']}.jsonl",
                 mime="application/json",
             )
     
